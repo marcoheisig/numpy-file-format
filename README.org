@@ -1,0 +1,4 @@
+#+TITLE: Numpy File Format
+
+This library allows Lisp programs to read and write arrays in the Numpy
+file format (both .npy and .npz files).
