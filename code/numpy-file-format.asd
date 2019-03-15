@@ -9,4 +9,5 @@
   ((:file "packages")
    (:file "dtypes")
    (:file "python-parser")
-   (:file "numpy-file-format")))
+   (:file "load-array")
+   (:file "write-array")))

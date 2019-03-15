@@ -42,26 +42,21 @@
                      buffer))))
         (values
          (gethash "shape" dict)
-         (code-dtype (gethash "descr" dict))
+         (dtype-from-code (gethash "descr" dict))
          (gethash "fortran_order" dict)
          (* 8 (+ header-len (if (= 1 major-version) 10 12))))))))
 
 (defun load-array (filename)
-  ;; We actually open the file twice, once to read the metadata, and once
-  ;; to read the file with a suitable element type.
+  ;; We actually open the file twice, once to read the metadata - one byte
+  ;; at a time, and once to read the array contents with a suitable element
+  ;; type (e.g. (unsigned-byte 32) for single precision floating-point
+  ;; numbers).
   (multiple-value-bind (dimensions dtype fortran-order header-bits)
       (load-array-metadata filename)
-    ;; Following the header comes the array data. If the dtype contains
-    ;; Python objects (i.e. dtype.hasobject is True), then the data is a
-    ;; Python pickle of the array. Otherwise the data is the contiguous
-    ;; (either C- or Fortran-, depending on fortran_order) bytes of the
-    ;; array. Consumers can figure out the number of bytes by multiplying
-    ;; the number of elements given by the shape (noting that shape=()
-    ;; means there is 1 element) by dtype.itemsize.
-    (let* ((array (make-array dimensions :element-type (dtype-type dtype)))
+    (let* ((element-type (dtype-type dtype))
+           (array (make-array dimensions :element-type element-type))
            (total-size (array-total-size array))
-           (chunk-size (if (typep array '(or (array (complex single-float))
-                                             (array (complex double-float))))
+           (chunk-size (if (subtypep element-type 'complex)
                            (/ (dtype-size dtype) 2)
                            (dtype-size dtype)))
            (stream-element-type
