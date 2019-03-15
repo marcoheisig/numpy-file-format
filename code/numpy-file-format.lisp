@@ -35,25 +35,22 @@
       ;; (\n) and padded with spaces (\x20) to make the total of len(magic
       ;; string) + 2 + len(length) + HEADER_LEN be evenly divisible by 64
       ;; for alignment purposes.
-      (let* ((dict (read-python-object-from-string
-                    (let ((buffer (make-string header-len :element-type 'base-char)))
-                      (loop for index from 0 below header-len do
-                        (setf (schar buffer index) (code-char (read-byte stream))))
-                      buffer)))
-             (fortran-order (gethash "fortran_order" dict))
-             (dimensions (gethash "shape" dict)))
-        (declare (ignore fortran-order)) ;; TODO
-        (multiple-value-bind (element-type endianness)
-            (parse-dtype (gethash "descr" dict))
-          (values dimensions element-type endianness
-                  (+ header-len (if (= 1 major-version) 10 12))))))))
+      (let ((dict (read-python-object-from-string
+                   (let ((buffer (make-string header-len :element-type 'base-char)))
+                     (loop for index from 0 below header-len do
+                       (setf (schar buffer index) (code-char (read-byte stream))))
+                     buffer))))
+        (values
+         (gethash "shape" dict)
+         (code-dtype (gethash "descr" dict))
+         (gethash "fortran_order" dict)
+         (* 8 (+ header-len (if (= 1 major-version) 10 12))))))))
 
 (defun load-array (filename)
   ;; We actually open the file twice, once to read the metadata, and once
   ;; to read the file with a suitable element type.
-  (multiple-value-bind (dimensions element-type endianness header-length)
+  (multiple-value-bind (dimensions dtype fortran-order header-bits)
       (load-array-metadata filename)
-    (declare (ignore endianness)) ; TODO
     ;; Following the header comes the array data. If the dtype contains
     ;; Python objects (i.e. dtype.hasobject is True), then the data is a
     ;; Python pickle of the array. Otherwise the data is the contiguous
@@ -61,35 +58,42 @@
     ;; array. Consumers can figure out the number of bytes by multiplying
     ;; the number of elements given by the shape (noting that shape=()
     ;; means there is 1 element) by dtype.itemsize.
-    (let* ((array (make-array dimensions :element-type element-type))
-           (total-size (array-total-size array)))
-      (etypecase array
-        ((simple-array single-float)
-         (with-open-file (stream filename :direction :input :element-type '(unsigned-byte 32))
-           (loop repeat (/ header-length 4) do (read-byte stream))
+    (let* ((array (make-array dimensions :element-type (dtype-type dtype)))
+           (total-size (array-total-size array))
+           (chunk-size (if (typep array '(or (array (complex single-float))
+                                             (array (complex double-float))))
+                           (/ (dtype-size dtype) 2)
+                           (dtype-size dtype)))
+           (stream-element-type
+             (if (typep array '(array (signed-byte *)))
+                 `(signed-byte ,chunk-size)
+                 `(unsigned-byte ,chunk-size))))
+      (with-open-file (stream filename :element-type stream-element-type)
+        ;; Skip the header.
+        (loop repeat (/ header-bits chunk-size) do (read-byte stream))
+        (etypecase array
+          ((simple-array single-float)
            (loop for index below total-size do
              (setf (row-major-aref array index)
-                   (ieee-floats:decode-float32
-                    (read-byte stream))))))
-        ((simple-array double-float)
-         (with-open-file (stream filename :direction :input :element-type '(unsigned-byte 64))
-           (loop repeat (/ header-length 8) do (read-byte stream))
+                   (ieee-floats:decode-float32 (read-byte stream)))))
+          ((simple-array double-float)
            (loop for index below total-size do
              (setf (row-major-aref array index)
-                   (ieee-floats:decode-float64
-                    (the (unsigned-byte 64) (read-byte stream)))))))
-        ((simple-array (unsigned-byte 64))
-         (with-open-file (stream filename :direction :input :element-type '(unsigned-byte 64))
-           (loop repeat (/ header-length 8) do (read-byte stream))
+                   (ieee-floats:decode-float64 (read-byte stream)))))
+          ((simple-array (complex single-float))
            (loop for index below total-size do
              (setf (row-major-aref array index)
-                   (read-byte stream)))))
-        ((simple-array (signed-byte 64))
-         (with-open-file (stream filename :direction :input :element-type '(signed-byte 64))
-           (loop repeat (/ header-length 8) do (read-byte stream))
+                   (complex
+                    (ieee-floats:decode-float32 (read-byte stream))
+                    (ieee-floats:decode-float32 (read-byte stream))))))
+          ((simple-array (complex double-float))
            (loop for index below total-size do
              (setf (row-major-aref array index)
-                   (read-byte stream)))))
-        ;; TODO more array types
-        )
+                   (complex
+                    (ieee-floats:decode-float64 (read-byte stream))
+                    (ieee-floats:decode-float64 (read-byte stream))))))
+          ((simple-array *)
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (read-byte stream))))))
       array)))
