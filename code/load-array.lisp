@@ -63,6 +63,7 @@
              (if (typep array '(array (signed-byte *)))
                  `(signed-byte ,chunk-size)
                  `(unsigned-byte ,chunk-size))))
+      ;; TODO Respect fortran-order and endianness.
       (with-open-file (stream filename :element-type stream-element-type)
         ;; Skip the header.
         (loop repeat (/ header-bits chunk-size) do (read-byte stream))
