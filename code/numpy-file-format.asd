@@ -10,4 +10,4 @@
    (:file "dtypes")
    (:file "python-parser")
    (:file "load-array")
-   (:file "write-array")))
+   (:file "store-array")))
