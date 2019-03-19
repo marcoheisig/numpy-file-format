@@ -8,6 +8,7 @@
       ((#\space #\tab) (values))
       ((#\' #\") (return (read-python-string c stream)))
       (#\( (return (read-python-tuple stream)))
+      (#\[ (return (read-python-list stream)))
       (#\{ (return (read-python-dict stream)))
       ((#\T #\F)
        (unread-char c stream)
@@ -54,6 +55,14 @@
         then (read-python-object stream #\, #\))
         until (eql object #\))
         collect object))
+
+(defun read-python-list (stream)
+  (coerce
+   (loop for object = (read-python-object stream nil #\])
+           then (read-python-object stream #\, #\])
+         until (eql object #\])
+         collect object)
+   'vector))
 
 (defun read-python-dict (stream)
   (let ((dict (make-hash-table :test #'equal)))
