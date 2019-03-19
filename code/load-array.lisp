@@ -63,6 +63,10 @@
              (if (typep array '(array (signed-byte *)))
                  `(signed-byte ,chunk-size)
                  `(unsigned-byte ,chunk-size))))
+      (unless (not fortran-order)
+        (error "Reading arrays in Fortran order is not yet supported."))
+      (unless (eq (dtype-endianness dtype) +endianness+)
+        (error "Endianness conversion is not yet supported."))
       ;; TODO Respect fortran-order and endianness.
       (with-open-file (stream filename :element-type stream-element-type)
         ;; Skip the header.
