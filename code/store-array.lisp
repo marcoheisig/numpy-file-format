@@ -4,7 +4,7 @@
   (with-output-to-string (stream nil :element-type 'base-char)
     (format stream "{'descr': '~A', ~
                      'fortran_order': ~:[False~;True~], ~
-                     'shape': (~{~D~^, ~}), }"
+                     'shape': (~{~D,~^ ~}), }"
             (dtype-code (dtype-from-type (array-element-type array)))
             nil
             (array-dimensions array))))
