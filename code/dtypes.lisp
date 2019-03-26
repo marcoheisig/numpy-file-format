@@ -38,7 +38,7 @@
        *dtypes*)
       (error "Cannot find dtype for type ~S." type)))
 
-(defun define-dtype (code type size &optional endianness)
+(defun define-dtype (code type size &optional (endianness +endianness+))
   (let ((dtype (make-instance 'dtype
                  :code code
                  :type type
