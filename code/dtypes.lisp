@@ -1,8 +1,8 @@
 (cl:in-package #:numpy-file-format)
 
 (defconstant +endianness+
-  #+little-endian :little-endian
-  #+big-endian :big-endian)
+  #+(or little-endian little-endian-target) :little-endian
+  #+(or big-endian big-endian-target) :big-endian)
 
 (defgeneric dtype-name (dtype))
 
