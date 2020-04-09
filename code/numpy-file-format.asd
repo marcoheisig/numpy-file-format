@@ -3,7 +3,9 @@
   :author "Marco Heisig <marco.heisig@fau.de>"
   :license "MIT"
 
-  :depends-on ("ieee-floats")
+  :depends-on
+  ("ieee-floats"
+   "trivial-features")
 
   :components
   ((:file "packages")
