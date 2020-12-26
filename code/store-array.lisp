@@ -37,7 +37,7 @@
                            (/ (dtype-size dtype) 2)
                            (dtype-size dtype)))
            (stream-element-type
-             (if (typep array '(array (signed-byte *)))
+             (if (subtypep (array-element-type array) '(signed-byte *))
                  `(signed-byte ,chunk-size)
                  `(unsigned-byte ,chunk-size)))
            (total-size (array-total-size array)))
