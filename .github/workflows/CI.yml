@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    name: ${{ matrix.lisp }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        lisp: [sbcl-bin, ccl-bin]
+        os: [ ubuntu-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: cache .roswell
+      id: cache-dot-roswell
+      uses: actions/cache@v1
+      with:
+        path: ~/.roswell
+        key: ${{ runner.os }}-dot-roswell-${{ matrix.lisp }}-${{ hashFiles('**/*.asd') }}
+        restore-keys: |
+          ${{ runner.os }}-dot-roswell-${{ matrix.lisp }}-
+          ${{ runner.os }}-dot-roswell-
+
+    - name: install roswell
+      shell: bash
+      # always run install, since it does some global installs and setup that isn't cached
+      env:
+       LISP: ${{ matrix.lisp }}
+      run: curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh -x
+    - name: run lisp
+      continue-on-error: true
+      shell: bash
+      run: |
+        ros -e '(format t "~a:~a on ~a~%...~%~%" (lisp-implementation-type) (lisp-implementation-version) (machine-type))'
+        ros -e '(format t " fixnum bits:~a~%" (integer-length most-positive-fixnum))'
+        ros -e "(ql:quickload 'trivial-features)" -e '(format t "features = ~s~%" *features*)'
+    - name: update ql dist if we have one cached
+      shell: bash
+      run: ros -e "(ql:update-all-dists :prompt nil)"
+
+    - name: load code and run tests
+      shell: bash
+      run: |
+        ros -e '(handler-bind (#+asdf3.2(asdf:bad-SYSTEM-NAME (function MUFFLE-WARNING))) (handler-case (ql:quickload :numpy-file-format/tests) (error (a) (format t "caught error ~s~%~a~%" a a) (uiop:quit 123))))' -e '(numpy-file-format/tests:run)'
