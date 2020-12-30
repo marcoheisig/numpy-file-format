@@ -33,13 +33,16 @@
         (write-byte (char-code #\space) stream))
       (write-byte (char-code #\newline) stream)) ; Finish with a newline.
     ;; Now, open the file a second time to write the array contents.
-    (let* ((chunk-size (if (subtypep (array-element-type array) 'complex)
+    (let* ((element-type (array-element-type array))
+           (chunk-size (if (subtypep element-type 'complex)
                            (/ (dtype-size dtype) 2)
                            (dtype-size dtype)))
            (stream-element-type
-             (if (subtypep (array-element-type array) '(signed-byte *))
-                 `(signed-byte ,chunk-size)
-                 `(unsigned-byte ,chunk-size)))
+             (if (or (eq element-type 'double-float)
+                     (eq element-type 'single-float)
+                     (subtypep element-type '(unsigned-byte *)))
+                 `(unsigned-byte ,chunk-size)
+                 `(signed-byte ,chunk-size)))
            (total-size (array-total-size array)))
       (with-open-file (stream filename :direction :output
                                        :element-type stream-element-type
