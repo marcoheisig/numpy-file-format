@@ -12,4 +12,15 @@
    (:file "dtypes")
    (:file "python-parser")
    (:file "load-array")
-   (:file "store-array")))
+   (:file "store-array"))
+
+  :in-order-to ((test-op (test-op :numpy-file-format/tests))))
+
+(defsystem :numpy-file-format/tests
+  :depends-on
+  ("numpy-file-format"
+   "uiop")
+
+  :components
+  ((:file "tests"))
+  :perform (test-op (o c) (uiop:symbol-call :numpy-file-format/tests '#:run)))

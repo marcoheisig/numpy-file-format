@@ -1,4 +1,4 @@
-(cl:in-package #:numpy-file-format)
+(in-package #:numpy-file-format)
 
 (defconstant +endianness+
   #+little-endian :little-endian
