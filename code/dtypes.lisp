@@ -73,3 +73,22 @@
 ;; Finally, let's sort *dtypes* such that type queries always find the most
 ;; specific entry first.
 (setf *dtypes* (stable-sort *dtypes* #'subtypep :key #'dtype-type))
+
+(defmacro with-float-decoding ((float-type) &body body)
+  (alexandria:once-only (float-type)
+    `(flet ((float32 (stream)
+              (declare (optimize (speed 3))
+                       (type stream stream))
+              (alexandria:eswitch (,float-type)
+                (:little-endian (the single-float (nibbles:read-ieee-single/le stream)))
+                (:big-endian (the single-float (nibbles:read-ieee-single/be stream)))))
+            (float64 (stream)
+              (declare (optimize (speed 3))
+                       (type stream stream))
+              (alexandria:eswitch (,float-type)
+                (:little-endian (the double-float (nibbles:read-ieee-double/le stream)))
+                (:big-endian (the double-float (nibbles:read-ieee-double/be stream))))))
+       (declare (inline float32 float64))
+       (alexandria:eswitch (,float-type)
+         (:little-endian ,@body)
+         (:big-endian ,@body)))))
