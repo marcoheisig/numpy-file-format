@@ -9,7 +9,7 @@
             nil
             (array-dimensions array))))
 
-(defun store-array/stream (array stream)
+(defun store-array/stream (array stream &key (endianness +endianness+))
   (let* ((metadata (array-metadata-string array))
          (metadata-length (- (* 64 (ceiling (+ 10 (length metadata)) 64)) 10)))
     (write-sequence #(#x93 78 85 77 80 89) stream) ; The magic string.
@@ -26,7 +26,7 @@
       (write-byte (char-code #\space) stream))
     (write-byte (char-code #\newline) stream) ; Finish with a newline.
     (let ((total-size (array-total-size array)))
-      (with-encoding (:little-endian)
+      (with-encoding (endianness)
         (etypecase array
           ((simple-array single-float)
            (loop for index below total-size do
@@ -42,8 +42,8 @@
           ((simple-array (complex double-float))
            (loop for index below total-size do
              (let ((c (row-major-aref array index)))
-               (float64 stream (realpart c))
-               (float64 stream (imagpart c)))))
+               (float64 stream (the double-float (realpart c)))
+               (float64 stream (the double-float (imagpart c))))))
           ((simple-array (signed-byte 8))
            (loop for index below total-size do
              (int8 stream (row-major-aref array index))))
@@ -69,11 +69,11 @@
            (loop for index below total-size do
              (int64 stream (row-major-aref array index)))))))))
 
-(defun store-array (array filename/stream)
+(defun store-array (array filename/stream &key (endianness +endianness+))
   (if (streamp filename/stream)
-      (store-array/stream array filename/stream)
+      (store-array/stream array filename/stream :endianness endianness)
       (with-open-file (stream filename/stream
                               :direction :output
                               :element-type '(unsigned-byte 8)
                               :if-exists :supersede)
-        (store-array/stream array stream))))
+        (store-array/stream array stream :endianness endianness))))
