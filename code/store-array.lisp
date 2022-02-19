@@ -9,61 +9,71 @@
             nil
             (array-dimensions array))))
 
-(defun store-array (array filename)
-  ;; We open the file twice - once with a stream element type of
-  ;; (unsigned-byte 8) to write the header, and once with a stream element
-  ;; type suitable for writing the array content.
-  (let* ((dtype (dtype-from-type (array-element-type array)))
-         (metadata (array-metadata-string array))
+(defun store-array/stream (array stream)
+  (let* ((metadata (array-metadata-string array))
          (metadata-length (- (* 64 (ceiling (+ 10 (length metadata)) 64)) 10)))
-    (with-open-file (stream filename :direction :output
-                                     :element-type '(unsigned-byte 8)
-                                     :if-exists :supersede)
-      (write-sequence #(#x93 78 85 77 80 89) stream) ; The magic string.
-      (write-byte 1 stream) ; Major version.
-      (write-byte 0 stream) ; Minor version.
-      ;; Write the length of the metadata string (2 bytes, little endian).
-      (write-byte (ldb (byte 8 0) metadata-length) stream)
-      (write-byte (ldb (byte 8 8) metadata-length) stream)
-      ;; Write the metadata string.
-      (loop for char across metadata do
-        (write-byte (char-code char) stream))
-      ;; Pad the header with spaces for 64 byte alignment.
-      (loop repeat (- metadata-length (length metadata) 1) do
-        (write-byte (char-code #\space) stream))
-      (write-byte (char-code #\newline) stream)) ; Finish with a newline.
-    ;; Now, open the file a second time to write the array contents.
-    (let* ((element-type (array-element-type array))
-           (chunk-size (if (subtypep element-type 'complex)
-                           (/ (dtype-size dtype) 2)
-                           (dtype-size dtype)))
-           (stream-element-type
-             (if (or (eq element-type 'double-float)
-                     (eq element-type 'single-float)
-                     (subtypep element-type '(unsigned-byte *)))
-                 `(unsigned-byte ,chunk-size)
-                 `(signed-byte ,chunk-size)))
-           (total-size (array-total-size array)))
-      (with-open-file (stream filename :direction :output
-                                       :element-type stream-element-type
-                                       :if-exists :append)
+    (write-sequence #(#x93 78 85 77 80 89) stream) ; The magic string.
+    (write-byte 1 stream) ; Major version.
+    (write-byte 0 stream) ; Minor version.
+    ;; Write the length of the metadata string (2 bytes, little endian).
+    (write-byte (ldb (byte 8 0) metadata-length) stream)
+    (write-byte (ldb (byte 8 8) metadata-length) stream)
+    ;; Write the metadata string.
+    (loop for char across metadata do
+      (write-byte (char-code char) stream))
+    ;; Pad the header with spaces for 64 byte alignment.
+    (loop repeat (- metadata-length (length metadata) 1) do
+      (write-byte (char-code #\space) stream))
+    (write-byte (char-code #\newline) stream) ; Finish with a newline.
+    (let ((total-size (array-total-size array)))
+      (with-encoding (:little-endian)
         (etypecase array
           ((simple-array single-float)
            (loop for index below total-size do
-             (write-byte (ieee-floats:encode-float32 (row-major-aref array index)) stream)))
+             (float32 stream (row-major-aref array index))))
           ((simple-array double-float)
            (loop for index below total-size do
-             (write-byte (ieee-floats:encode-float64 (row-major-aref array index)) stream)))
+             (float64 stream (row-major-aref array index))))
           ((simple-array (complex single-float))
            (loop for index below total-size do
              (let ((c (row-major-aref array index)))
-               (write-byte (ieee-floats:encode-float32 (realpart c)) stream)
-               (write-byte (ieee-floats:encode-float32 (imagpart c)) stream))))
+               (float32 stream (realpart c))
+               (float32 stream (imagpart c)))))
           ((simple-array (complex double-float))
            (loop for index below total-size do
              (let ((c (row-major-aref array index)))
-               (write-byte (ieee-floats:encode-float64 (realpart c)) stream)
-               (write-byte (ieee-floats:encode-float64 (imagpart c)) stream))))
-          ((simple-array *)
+               (float64 stream (realpart c))
+               (float64 stream (imagpart c)))))
+          ((simple-array (signed-byte 8))
            (loop for index below total-size do
-             (write-byte (row-major-aref array index) stream))))))))
+             (int8 stream (row-major-aref array index))))
+          ((simple-array (unsigned-byte 8))
+           (loop for index below total-size do
+             (uint8 stream (row-major-aref array index))))
+          ((simple-array (unsigned-byte 16))
+           (loop for index below total-size do
+             (uint16 stream (row-major-aref array index))))
+          ((simple-array (signed-byte 16))
+           (loop for index below total-size do
+             (int16 stream (row-major-aref array index))))
+          ((simple-array (unsigned-byte 32))
+           (loop for index below total-size do
+             (uint32 stream (row-major-aref array index))))
+          ((simple-array (signed-byte 32))
+           (loop for index below total-size do
+             (int32 stream (row-major-aref array index))))
+          ((simple-array (unsigned-byte 64))
+           (loop for index below total-size do
+             (uint64 stream (row-major-aref array index))))
+          ((simple-array (signed-byte 64))
+           (loop for index below total-size do
+             (int64 stream (row-major-aref array index)))))))))
+
+(defun store-array (array filename/stream)
+  (if (streamp filename/stream)
+      (store-array/stream array filename/stream)
+      (with-open-file (stream filename/stream
+                              :direction :output
+                              :element-type '(unsigned-byte 8)
+                              :if-exists :supersede)
+        (store-array/stream array stream))))

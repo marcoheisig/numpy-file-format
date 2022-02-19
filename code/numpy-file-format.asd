@@ -5,7 +5,6 @@
 
   :depends-on
   ("nibbles"
-   "ieee-floats"
    "alexandria"
    "trivial-features")
 
