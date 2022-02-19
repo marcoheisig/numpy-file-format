@@ -86,10 +86,6 @@
            (loop for index below total-size do
              (setf (row-major-aref array index)
                    (int8 stream))))
-          ((simple-array (signed-byte 8))
-           (loop for index below total-size do
-             (setf (row-major-aref array index)
-                   (int8 stream))))
           ((simple-array (unsigned-byte 8))
            (loop for index below total-size do
              (setf (row-major-aref array index)
