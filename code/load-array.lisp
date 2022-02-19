@@ -48,7 +48,7 @@
 (defun load-array-metadata (filename/stream)
   (if (streamp filename/stream)
       (load-array-metadata/stream filename/stream)
-      (with-open-file (stream filename/stream :direction :input :element-type '(unsigned-byte 8))
+      (with-open-file (stream filename/stream :direction :input :element-type 'unsigned-byte)
         (load-array-metadata/stream stream))))
 
 (defun load-array/stream (stream)
@@ -65,7 +65,7 @@
       (unless (not fortran-order)
         (error "Reading arrays in Fortran order is not yet supported."))
       ;; TODO Respect fortran-order
-      (with-float-decoding ((dtype-endianness dtype))
+      (with-decoding ((dtype-endianness dtype))
         (etypecase array
           ((simple-array single-float)
            (loop for index below total-size do
@@ -82,14 +82,46 @@
              (setf (row-major-aref array index)
                    (complex (float64 stream)
                             (float64 stream)))))
-          ((simple-array *)
+          ((simple-array (signed-byte 8))
            (loop for index below total-size do
              (setf (row-major-aref array index)
-                   (read-byte stream))))))
+                   (int8 stream))))
+          ((simple-array (signed-byte 8))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (int8 stream))))
+          ((simple-array (unsigned-byte 8))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (uint8 stream))))
+          ((simple-array (unsigned-byte 16))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (uint16 stream))))
+          ((simple-array (signed-byte 16))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (int16 stream))))
+          ((simple-array (unsigned-byte 32))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (uint32 stream))))
+          ((simple-array (signed-byte 32))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (int32 stream))))
+          ((simple-array (unsigned-byte 64))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (uint64 stream))))
+          ((simple-array (signed-byte 64))
+           (loop for index below total-size do
+             (setf (row-major-aref array index)
+                   (int64 stream))))))
       array)))
 
 (defun load-array (filename/stream)
   (if (streamp filename/stream)
       (load-array/stream filename/stream)
-      (with-open-file (stream filename/stream :direction :input :element-type '(unsigned-byte 8))
+      (with-open-file (stream filename/stream :direction :input :element-type 'unsigned-byte)
         (load-array/stream stream))))
