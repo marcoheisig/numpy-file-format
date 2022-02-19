@@ -69,11 +69,11 @@
            (loop for index below total-size do
              (int64 stream (row-major-aref array index)))))))))
 
-(defun store-array (array filename/stream &key (endianness +endianness+))
+(defun store-array (array filename/stream)
   (if (streamp filename/stream)
-      (store-array/stream array filename/stream :endianness endianness)
+      (store-array/stream array filename/stream :endianness :little-endian)
       (with-open-file (stream filename/stream
                               :direction :output
                               :element-type '(unsigned-byte 8)
                               :if-exists :supersede)
-        (store-array/stream array stream :endianness endianness))))
+        (store-array/stream array stream :endianness :little-endian))))
