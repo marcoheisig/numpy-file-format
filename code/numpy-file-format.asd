@@ -4,7 +4,8 @@
   :license "MIT"
 
   :depends-on
-  ("ieee-floats"
+  ("nibbles"
+   "alexandria"
    "trivial-features")
 
   :components
