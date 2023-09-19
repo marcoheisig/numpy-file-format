@@ -55,7 +55,7 @@
   (define-dtype (concatenate 'string "=" code) type size +endianness+))
 
 (define-dtype "O" 't 64)
-(define-dtype "?" 'bit 1)
+(define-dtype "?" 'bit 8)
 (define-dtype "b" '(unsigned-byte 8) 8)
 (define-multibyte-dtype "i1" '(signed-byte 8) 8)
 (define-multibyte-dtype "i2" '(signed-byte 16) 16)

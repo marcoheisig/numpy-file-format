@@ -11,7 +11,8 @@
     (complex double-float)
     ,@(loop for bytes in '(8 16 32 64)
             collect `(unsigned-byte ,bytes)
-            collect `(signed-byte ,bytes))))
+            collect `(signed-byte ,bytes))
+    bit))
 
 (defparameter *array-dimensions*
   '((2 3 4 5)
